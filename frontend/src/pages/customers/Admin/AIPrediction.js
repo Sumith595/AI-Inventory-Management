@@ -367,19 +367,11 @@ return(
             {
                 label: 'Critical risk',
                 value: summaryPredictions.filter(
-                    p => String(p.risk_level || "").trim().toLowerCase() === "high"
+                    p => String(p.risk_level || "").trim().toLowerCase() === "critical"
                 ).length,
                 icon: <ErrorOutlineOutlinedIcon sx={{ mr: 1, fontSize: 18 }} />,
                 color: '#ff6b6b',
                 subtitle: 'Immediate attention',
-                accent: 'rgba(255, 107, 107, 0.16)',
-            },
-            {
-                label: 'High risk',
-                value: highRisk,
-                icon: <ErrorOutlineOutlinedIcon sx={{ mr: 1, fontSize: 18 }} />,
-                color: '#ff6b6b',
-                subtitle: 'Requires attention',
                 accent: 'rgba(255, 107, 107, 0.16)',
             },
             {

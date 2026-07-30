@@ -2,12 +2,19 @@ import json
 from datetime import datetime
 
 import requests
+import os
+import time
+from dotenv import load_dotenv
 from database import SessionLocal
 from database_models import (
     Product,
     InventoryHistory,
     InventoryPrediction,
 )
+
+load_dotenv()
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 
 def calculate_product_metrics(product, history):
@@ -30,47 +37,58 @@ def calculate_product_metrics(product, history):
     }
 
 
-def call_ollama_ai(product_name, metrics):
-    prompt = f"""
-You are an inventory analyst.
+def call_groq_ai(product_name, metrics, risk_level):
 
-Analyze the following product:
+    prompt = f"""
+You are an inventory management assistant.
 
 Product Name: {product_name}
 Current Stock: {metrics['current_stock']}
 Average Daily Sales: {metrics['average_daily_sales']}
 Predicted Stockout Days: {metrics['predicted_stockout_days']}
+Risk Level: {risk_level}
 
-Respond ONLY with valid JSON:
-
-{{
-    "risk_level":"HIGH | MEDIUM | LOW",
-    "recommendation":"Short recommendation"
-}}
+Generate ONLY one short recommendation.
+Maximum 15 words.
 """
 
-    try:
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "mistral",
-                "prompt": prompt,
-                "stream": False,
-            },
-            timeout=60,
-        )
-        response.raise_for_status()
-        result = response.json()
-        text = result.get("response", "").strip()
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        if start == -1 or end == 0:
-            return None
-        return json.loads(text[start:end])
-    except Exception as exc:
-        print("Ollama Error:", exc)
-        return None
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 30
+    }
+
+    try:
+
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        return result["choices"][0]["message"]["content"].strip()
+
+    except Exception as e:
+
+        print("Groq Error:", e)
+
+        return ""
 
 def generate_ai_prediction():
     db = SessionLocal()
@@ -83,13 +101,7 @@ def generate_ai_prediction():
                 .all()
             )
             metrics = calculate_product_metrics(product, history)
-            ai_result = call_ollama_ai(product.name, metrics)
-            if ai_result is None:
-                ai_result = {
-                    "risk_level": "MEDIUM",
-                    "recommendation": "Unable to generate AI recommendation.",
-                }
-
+    
             prediction = (
                 db.query(InventoryPrediction)
                 .filter(InventoryPrediction.product_id == product.id)
@@ -124,7 +136,17 @@ def generate_ai_prediction():
                 risk_level = "LOW"
 
             prediction.risk_level = risk_level
-            recommendation = ai_result.get("recommendation", "").strip()
+
+            recommendation = call_groq_ai(
+                product.name,
+                metrics,
+                risk_level
+            )
+            
+            time.sleep(2)  # Sleep for 2 seconds to avoid hitting rate limits
+            
+            recommendation = recommendation.strip()
+            
             if not recommendation:
                 if risk_level == "CRITICAL":
                     recommendation = "Stock exhausted. Reorder immediately."
