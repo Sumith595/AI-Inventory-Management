@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+myenv
+.git
+.gitignore
+.env
+.env.local
+node_modules
+frontend
