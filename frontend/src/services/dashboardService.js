@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://ai-inventory-management-0y56.onrender.com";
 
 export const getDashboardData = () => {
     return axios.get(`${API}/admin/dashboard`);

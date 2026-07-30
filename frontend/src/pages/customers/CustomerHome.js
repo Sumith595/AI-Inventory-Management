@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "../../App.css";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+const API_URL = process.env.REACT_APP_API_URL || "https://ai-inventory-management-0y56.onrender.com";
 const API = axios.create({
   baseURL: API_URL,
   headers: {
